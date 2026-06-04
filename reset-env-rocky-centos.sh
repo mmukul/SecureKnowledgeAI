@@ -1,23 +1,18 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
-echo "Removing old virtual environment and Chroma database..."
 rm -rf .venv chroma_db
-
-echo "Creating virtual environment..."
 python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
 
-python -m pip install --upgrade pip setuptools wheel
+echo "Python version:"
+python --version
 
-pip uninstall -y posthog chromadb langchain langchain-community langchain-chroma langchain-ollama pysqlite3-binary || true
-pip install --no-cache-dir -r requirements.txt
+echo "SQLite version used by Python after patch:"
+python -c "from src import bootstrap; import sqlite3; print(sqlite3.sqlite_version)"
 
-echo "Running environment doctor..."
-python -m src.doctor
-
-echo ""
-echo "Setup complete. Now run:"
-echo "source .venv/bin/activate"
-echo "python -m src.ingest"
-echo "python -m src.query --debug \"How many work-from-home days are allowed?\""
+echo "Setup completed."
+echo "Run: python -m src.ingest"
+echo "Run: python -m src.query --debug 'How many work-from-home days are allowed?'"

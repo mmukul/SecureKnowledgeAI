@@ -1,6 +1,6 @@
 chromadb==0.5.23
 posthog==3.7.0
-ollama
+ollama>=0.5.0
 langchain
 langchain-community
 pysqlite3-binary

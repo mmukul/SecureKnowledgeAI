@@ -1,15 +1,19 @@
-from src import bootstrap  # noqa: F401 - must run before chromadb import
+from src import bootstrap  # noqa: F401 must run before chromadb import
 
-import ollama
 import chromadb
 from chromadb.config import Settings
+import ollama
 
-from src.config import CHROMA_DIR, COLLECTION_NAME, EMBED_MODEL, LLM_MODEL, TOP_K
+from src.config import (
+    CHROMA_DIR,
+    COLLECTION_NAME,
+    EMBED_MODEL,
+    LLM_MODEL,
+    TOP_K,
+)
 
 
 def get_chroma_client():
-    # Do not use chromadb.telemetry.product.noop.
-    # That import path is invalid in several ChromaDB versions.
     return chromadb.PersistentClient(
         path=str(CHROMA_DIR),
         settings=Settings(anonymized_telemetry=False),
@@ -33,28 +37,18 @@ def retrieve_context(question: str, top_k: int = TOP_K):
         query_embeddings=[query_embedding],
         n_results=top_k,
     )
-    documents = results.get("documents", [[]])[0]
-    return documents
+    docs = results.get("documents", [[]])[0]
+    return docs
 
 
-def answer_question(question: str, debug: bool = False):
-    documents = retrieve_context(question)
-    context = "\n\n---\n\n".join(documents)
-
-    if debug:
-        print("\nRetrieved Chunks:")
-        print("-" * 60)
-        for index, doc in enumerate(documents, start=1):
-            print(f"Chunk {index}:\n{doc}\n")
-        print("-" * 60)
-
-    if not context.strip():
-        return "No relevant context found. Please run ingestion first with: python -m src.ingest"
+def generate_answer(question: str, context_chunks):
+    context = "\n\n".join(context_chunks).strip()
+    if not context:
+        return "No relevant context found. Please run ingestion first using: python -m src.ingest"
 
     prompt = f"""
-You are a helpful enterprise policy assistant.
-Answer the question only using the provided context.
-If the answer is not present in the context, say: "I could not find this in the provided policy documents."
+You are an enterprise policy assistant. Answer only from the provided context.
+If the answer is not present in the context, say: I could not find this information in the indexed documents.
 
 Context:
 {context}
@@ -70,3 +64,17 @@ Answer:
         messages=[{"role": "user", "content": prompt}],
     )
     return response["message"]["content"].strip()
+
+
+def ask(question: str, debug: bool = False) -> str:
+    context_chunks = retrieve_context(question)
+
+    if debug:
+        print("\nRetrieved Chunks:")
+        print("-" * 60)
+        for i, chunk in enumerate(context_chunks, start=1):
+            print(f"Chunk {i}:\n{chunk}\n")
+        print("-" * 60)
+
+    answer = generate_answer(question, context_chunks)
+    return answer

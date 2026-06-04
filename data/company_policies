@@ -1,0 +1,33 @@
+COMPANY POLICY HANDBOOK
+
+1. WORK FROM HOME POLICY
+Employees may work remotely up to 3 days per week with manager approval.
+Employees must be available between 10:00 AM and 4:00 PM local time, attend mandatory meetings, maintain a stable internet connection, and follow company security guidelines.
+Remote work requests exceeding 3 days per week require HR approval.
+
+2. ANNUAL LEAVE POLICY
+Full-time employees receive 24 days of paid annual leave per calendar year. Up to 5 unused leave days can be carried forward. Remaining days expire at year-end. Leave requests must be submitted at least 7 days in advance.
+
+3. INFORMATION SECURITY POLICY
+All employees must use Multi-Factor Authentication, change passwords every 90 days, report phishing emails immediately, encrypt confidential company data, and lock systems when away from their workstation. Sharing company credentials is strictly prohibited.
+
+4. ACCEPTABLE USE POLICY
+Company devices are intended primarily for business use. Employees must not install unauthorized software, download pirated content, access malicious websites, or share confidential information externally.
+
+5. INCIDENT RESPONSE POLICY
+Security incidents must be reported within 30 minutes of discovery. Critical incidents include data breaches, ransomware infections, and unauthorized system access. High incidents include malware infection and privilege escalation.
+
+6. DEVSECOPS POLICY
+All code changes must pass SAST scanning, dependency vulnerability scanning, and peer review. Code must not contain Critical or High vulnerabilities before release. Container images must be scanned before deployment. Secrets must never be hardcoded in source code.
+
+7. APPLICATION SECURITY POLICY
+Development teams must follow secure coding guidelines, conduct threat modeling for critical applications, perform security testing before production releases, remediate Critical vulnerabilities within 24 hours, and remediate High vulnerabilities within 7 days.
+
+8. AI USAGE POLICY
+Employees may use approved AI tools for productivity purposes. Employees must not upload customer PII, source code without approval, or confidential business information to public AI systems. AI-generated content must be reviewed by a human before publication.
+
+9. EXPENSE REIMBURSEMENT POLICY
+Employees may claim travel expenses, hotel accommodation, business meals, and conference registrations. Claims exceeding INR 50,000 require director approval. Receipts must be submitted within 30 days.
+
+10. EMPLOYEE ONBOARDING POLICY
+New employees must complete Security Awareness Training, Code of Conduct Training, Data Privacy Training, and MFA Enrollment within the first 14 days of employment.

@@ -5,6 +5,15 @@ Usage:
     python -m src.query --debug "How many work-from-home days are allowed?"
 """
 
+try:
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except Exception as e:
+    print(f"SQLite patch failed: {e}")
+
+import chromadb
+
 import argparse
 import sys
 

@@ -1,34 +1,60 @@
-"""Core RAG logic for the ChromaDB + Ollama demo.
+from src import bootstrap  # noqa: F401 - must run before chromadb import
 
-Important:
-The SQLite compatibility block must run before any ChromaDB/LangChain Chroma
-imports. This avoids the common CentOS/Rocky Linux error where the system
-SQLite version is older than the version required by ChromaDB.
-"""
+import ollama
+import chromadb
+from chromadb.config import Settings
 
-# Must run before importing chromadb/langchain_chroma.
-from src import compat  # noqa: F401
+from src.config import CHROMA_DIR, COLLECTION_NAME, EMBED_MODEL, LLM_MODEL, TOP_K
 
 
-from pathlib import Path
-from typing import List
-
-from chromadb.config import Settings as ChromaSettings
-from langchain.schema import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader, TextLoader
-from langchain_chroma import Chroma
-from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-
-from src.config import settings
+def get_chroma_client():
+    # Do not use chromadb.telemetry.product.noop.
+    # That import path is invalid in several ChromaDB versions.
+    return chromadb.PersistentClient(
+        path=str(CHROMA_DIR),
+        settings=Settings(anonymized_telemetry=False),
+    )
 
 
-PROMPT = ChatPromptTemplate.from_template(
-    """
-You are a helpful RAG assistant. Answer the question using only the provided context.
-If the answer is not in the context, say you do not know.
+def get_collection():
+    client = get_chroma_client()
+    return client.get_or_create_collection(name=COLLECTION_NAME)
+
+
+def embed_text(text: str):
+    response = ollama.embeddings(model=EMBED_MODEL, prompt=text)
+    return response["embedding"]
+
+
+def retrieve_context(question: str, top_k: int = TOP_K):
+    collection = get_collection()
+    query_embedding = embed_text(question)
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=top_k,
+    )
+    documents = results.get("documents", [[]])[0]
+    return documents
+
+
+def answer_question(question: str, debug: bool = False):
+    documents = retrieve_context(question)
+    context = "\n\n---\n\n".join(documents)
+
+    if debug:
+        print("\nRetrieved Chunks:")
+        print("-" * 60)
+        for index, doc in enumerate(documents, start=1):
+            print(f"Chunk {index}:\n{doc}\n")
+        print("-" * 60)
+
+    if not context.strip():
+        return "No relevant context found. Please run ingestion first with: python -m src.ingest"
+
+    prompt = f"""
+You are a helpful enterprise policy assistant.
+Answer the question only using the provided context.
+If the answer is not present in the context, say: "I could not find this in the provided policy documents."
 
 Context:
 {context}
@@ -38,123 +64,9 @@ Question:
 
 Answer:
 """.strip()
-)
 
-
-def get_embeddings() -> OllamaEmbeddings:
-    return OllamaEmbeddings(
-        model=settings.embedding_model,
-        base_url=settings.ollama_base_url,
+    response = ollama.chat(
+        model=LLM_MODEL,
+        messages=[{"role": "user", "content": prompt}],
     )
-
-
-def get_llm() -> ChatOllama:
-    return ChatOllama(
-        model=settings.llm_model,
-        base_url=settings.ollama_base_url,
-        temperature=0,
-    )
-
-
-def load_documents() -> List[Document]:
-    data_path = Path(settings.data_dir)
-    if not data_path.exists():
-        raise FileNotFoundError(f"Data directory not found: {settings.data_dir}")
-
-    documents: List[Document] = []
-
-    text_loader = DirectoryLoader(
-        settings.data_dir,
-        glob="**/*.txt",
-        loader_cls=TextLoader,
-        loader_kwargs={"encoding": "utf-8"},
-        show_progress=True,
-    )
-    md_loader = DirectoryLoader(
-        settings.data_dir,
-        glob="**/*.md",
-        loader_cls=TextLoader,
-        loader_kwargs={"encoding": "utf-8"},
-        show_progress=True,
-    )
-    pdf_loader = DirectoryLoader(
-        settings.data_dir,
-        glob="**/*.pdf",
-        loader_cls=PyPDFLoader,
-        show_progress=True,
-    )
-
-    for loader in (text_loader, md_loader, pdf_loader):
-        documents.extend(loader.load())
-
-    return documents
-
-
-def split_documents(documents: List[Document]) -> List[Document]:
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
-    )
-    return splitter.split_documents(documents)
-
-
-def get_vectorstore() -> Chroma:
-    return Chroma(
-        collection_name=settings.collection_name,
-        persist_directory=settings.chroma_db_dir,
-        embedding_function=get_embeddings(),
-        client_settings=ChromaSettings(anonymized_telemetry=False),
-    )
-
-
-def format_docs(docs: List[Document]) -> str:
-    return "\n\n".join(
-        f"Source: {doc.metadata.get('source', 'unknown')}\n{doc.page_content}"
-        for doc in docs
-    )
-
-
-def get_index_count() -> int:
-    """Return the number of chunks currently stored in ChromaDB."""
-    vectorstore = get_vectorstore()
-    try:
-        return int(vectorstore._collection.count())
-    except Exception:
-        return 0
-
-
-def retrieve_context(question: str) -> List[Document]:
-    """Retrieve the most relevant chunks for a question."""
-    vectorstore = get_vectorstore()
-    retriever = vectorstore.as_retriever(search_kwargs={"k": settings.top_k})
-    return retriever.invoke(question)
-
-
-def fallback_answer(question: str, docs: List[Document]) -> str:
-    """Simple fallback when the LLM returns an empty response.
-
-    This keeps demos usable even if Ollama returns a blank response.
-    """
-    text = format_docs(docs).lower()
-    if "work" in question.lower() and "home" in question.lower():
-        for doc in docs:
-            for line in doc.page_content.splitlines():
-                if "remotely up to" in line.lower() or "work remotely" in line.lower():
-                    return line.strip()
-    return "I found relevant context, but the model returned an empty response. Run with --debug to view retrieved chunks."
-
-
-def answer_question(question: str) -> str:
-    docs = retrieve_context(question)
-
-    if not docs:
-        return "No relevant context found. Run ingestion first: python -m src.ingest"
-
-    chain = PROMPT | get_llm() | StrOutputParser()
-    response = chain.invoke({"context": format_docs(docs), "question": question})
-    response = response.strip() if response else ""
-
-    if not response:
-        return fallback_answer(question, docs)
-
-    return response
+    return response["message"]["content"].strip()

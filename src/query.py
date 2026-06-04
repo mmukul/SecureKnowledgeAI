@@ -32,6 +32,8 @@ def main():
         print(f"Error while running query: {exc}")
         raise
 
+print(answer)
+
 
 if __name__ == "__main__":
     main()

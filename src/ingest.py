@@ -1,6 +1,5 @@
-from src import bootstrap  # noqa: F401 - must run before chromadb import
+from src import bootstrap  # noqa: F401 must run before chromadb import
 
-import sqlite3
 from src.config import DATA_FILE, CHUNK_SIZE, CHUNK_OVERLAP
 from src.rag import get_collection, embed_text
 
@@ -10,46 +9,40 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVE
     start = 0
     while start < len(text):
         end = start + chunk_size
-        chunks.append(text[start:end])
-        start = end - overlap
-    return [chunk.strip() for chunk in chunks if chunk.strip()]
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        start += chunk_size - overlap
+    return chunks
 
 
-def main():
-    print(f"SQLite version used by Python: {sqlite3.sqlite_version}")
-
+def ingest():
     if not DATA_FILE.exists():
         raise FileNotFoundError(f"Data file not found: {DATA_FILE}")
 
     text = DATA_FILE.read_text(encoding="utf-8")
     chunks = chunk_text(text)
-
     collection = get_collection()
 
-    existing = collection.get()
-    if existing.get("ids"):
-        collection.delete(ids=existing["ids"])
+    if not chunks:
+        print("No text chunks found for ingestion.")
+        return
 
-    ids = []
-    embeddings = []
-    documents = []
-    metadatas = []
+    ids = [f"policy-{i}" for i in range(len(chunks))]
+    embeddings = [embed_text(chunk) for chunk in chunks]
 
-    for i, chunk in enumerate(chunks):
-        ids.append(f"policy_chunk_{i}")
-        embeddings.append(embed_text(chunk))
-        documents.append(chunk)
-        metadatas.append({"source": str(DATA_FILE.name), "chunk": i})
-
-    collection.add(
+    collection.upsert(
         ids=ids,
+        documents=chunks,
         embeddings=embeddings,
-        documents=documents,
-        metadatas=metadatas,
     )
 
-    print(f"Indexed {len(chunks)} chunks into ChromaDB.")
+    print(f"Ingestion completed. Indexed {len(chunks)} chunks from {DATA_FILE}.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        ingest()
+    except Exception as exc:
+        print(f"Error while running ingestion: {exc}")
+        raise

@@ -11,10 +11,16 @@ CHROMA_DIR = BASE_DIR / "chroma_db"
 COLLECTION_NAME = "company_policies"
 
 # Models
-MODEL_NAME = "llama3.2:3b"
+LLM_MODEL = "llama3.2:3b"
+MODEL_NAME = LLM_MODEL
+
 EMBED_MODEL = "nomic-embed-text"
+EMBEDDING_MODEL = EMBED_MODEL
 
 # RAG Settings
 TOP_K = 4
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
+
+# Ollama
+OLLAMA_HOST = "http://localhost:11434"

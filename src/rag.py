@@ -6,6 +6,15 @@ imports. This avoids the common CentOS/Rocky Linux error where the system
 SQLite version is older than the version required by ChromaDB.
 """
 
+try:
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except Exception as e:
+    print(f"SQLite patch failed: {e}")
+
+import chromadb
+
 # Must run before importing chromadb/langchain_chroma.
 from src import compat  # noqa: F401
 

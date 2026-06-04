@@ -1,18 +1,15 @@
-"""Application configuration."""
 from pathlib import Path
-from dotenv import load_dotenv
-import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
 
-DATA_FILE = Path(os.getenv("DATA_FILE", BASE_DIR / "data" / "company_policies.txt"))
-CHROMA_DB_PATH = Path(os.getenv("CHROMA_DB_PATH", BASE_DIR / "chroma_db"))
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "company_policies")
+DATA_DIR = BASE_DIR / "data"
+DATA_FILE = DATA_DIR / "company_policies.txt"
 
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:3b")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+CHROMA_DIR = BASE_DIR / "chroma_db"
 
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "700"))
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
-TOP_K = int(os.getenv("TOP_K", "4"))
+MODEL_NAME = "llama3.2:3b"
+EMBED_MODEL = "nomic-embed-text"
+
+TOP_K = 4
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
